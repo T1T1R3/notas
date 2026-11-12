@@ -163,8 +163,8 @@ const STOP_RE =
 /** Encontra BC, valor e alíquota de ICMS consistentes entre si nas colunas numéricas restantes. */
 function resolveTaxColumns(rest: number[]) {
   const n = rest.length
-  type Tri = { b: number; v: number; a: number }
-  const tris: Tri[] = []
+  type Tri = { b: number; v: number; a: number; err: number }
+  const all: Tri[] = []
   for (let a = 2; a < n; a++) {
     const rate = rest[a]
     if (rate <= 0 || rate > 40) continue
@@ -172,10 +172,21 @@ function resolveTaxColumns(rest: number[]) {
       for (let b = v - 1; b >= 0; b--) {
         const bc = rest[b]
         const val = rest[v]
-        if (bc > 0 && val > 0 && Math.abs((bc * rate) / 100 - val) <= 0.02 + val * 0.002) tris.push({ b, v, a })
+        if (bc <= 0 || val <= 0) continue
+        // o valor do imposto é arredondado ao centavo: o erro máximo legítimo é R$ 0,005.
+        // (tolerância folgada fazia o V.IPI 12,03 passar por alíquota de ICMS 12,03%)
+        const err = Math.abs((bc * rate) / 100 - val)
+        if (err <= 0.011) all.push({ b, v, a, err })
       }
     }
   }
+  // para cada valor de imposto, fica só a combinação que melhor o explica
+  const bestByV = new Map<number, Tri>()
+  for (const t of all) {
+    const cur = bestByV.get(t.v)
+    if (!cur || t.err < cur.err) bestByV.set(t.v, t)
+  }
+  const tris = [...bestByV.values()]
   if (tris.length) {
     // o DANFE traz V.ICMS antes de V.IPI e ALÍQ. ICMS antes de ALÍQ. IPI
     const icms = tris.reduce((m, t) => (t.a < m.a || (t.a === m.a && t.v < m.v) ? t : m))
@@ -394,6 +405,12 @@ export function parseDanfe(items: TextItem[], fileName: string): Note {
   if (totals.icms != null && products.length && Math.abs(icmsSum - totals.icms) > 0.05)
     warnings.push(
       `A soma do ICMS dos itens (${icmsSum.toFixed(2)}) difere do ICMS total da nota (${totals.icms.toFixed(2)}).`,
+    )
+
+  const ipiSum = products.reduce((s, p) => s + p.ipiValue, 0)
+  if (totals.ipi != null && products.length && Math.abs(ipiSum - totals.ipi) > 0.05)
+    warnings.push(
+      `A soma do IPI dos itens (${ipiSum.toFixed(2)}) difere do IPI total da nota (${totals.ipi.toFixed(2)}).`,
     )
 
   return {

@@ -19,7 +19,7 @@ import {
 } from './lib/analysis'
 import type { Note } from './lib/parser'
 
-const STORE = 'separacao-notas:v1'
+const STORE = 'separacao-notas:v2' // v2: leitura de alíquota corrigida; dados antigos são descartados
 
 function loadStored(): Note[] {
   try {

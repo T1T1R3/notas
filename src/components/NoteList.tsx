@@ -33,7 +33,7 @@ export function NoteList({
       <AnimatePresence initial={false}>
         {notes.map((n) => {
           const chk = checkNote(n)
-          const ok = chk.productsOk !== false && chk.icmsOk !== false && n.warnings.length === 0
+          const ok = chk.productsOk !== false && chk.icmsOk !== false && chk.ipiOk !== false && n.warnings.length === 0
           const active = selected === n.id
           return (
             <motion.div
@@ -84,7 +84,7 @@ export function NoteList({
                   {ok ? (
                     <span
                       className="inline-flex items-center gap-1 rounded-full bg-good-soft px-2 py-0.5 text-[11px] font-medium text-good"
-                      title="Soma dos itens e do ICMS conferem com os totais da nota"
+                      title="Soma dos itens, do ICMS e do IPI conferem com os totais da nota"
                     >
                       <CheckCircle2 className="size-3" /> Conferida
                     </span>

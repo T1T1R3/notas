@@ -128,14 +128,17 @@ export function summarizeBy<K extends string | number>(products: Product[], key:
 export interface NoteCheck {
   productsOk: boolean | null
   icmsOk: boolean | null
+  ipiOk: boolean | null
 }
 
 export function checkNote(n: Note): NoteCheck {
   const sum = n.products.reduce((s, p) => s + p.total, 0)
   const icms = n.products.reduce((s, p) => s + p.icmsValue, 0)
+  const ipi = n.products.reduce((s, p) => s + p.ipiValue, 0)
   return {
     productsOk: n.totals.products == null ? null : Math.abs(sum - n.totals.products) <= 0.05,
     icmsOk: n.totals.icms == null ? null : Math.abs(icms - n.totals.icms) <= 0.05,
+    ipiOk: n.totals.ipi == null ? null : Math.abs(ipi - n.totals.ipi) <= 0.05,
   }
 }
 
