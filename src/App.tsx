@@ -6,6 +6,7 @@ import { GroupTable } from './components/GroupTable'
 import { NcmMatrix, OriginPanel, QuantityChart } from './components/Insights'
 import { NoteList } from './components/NoteList'
 import { RateBreakdown } from './components/RateBreakdown'
+import { StCalculator } from './components/StCalculator'
 import { AnimatedNumber } from './components/ui'
 import {
   exportItemsCsv,
@@ -255,6 +256,8 @@ export default function App() {
             <RateBreakdown rates={rates} delay={0.1} />
 
             <GroupTable groups={groups} mode={mode} onMode={setMode} rates={visibleRates} delay={0.2} />
+
+            <StCalculator products={products} delay={0.22} />
 
             <div className="grid gap-5 lg:grid-cols-2">
               <QuantityChart groups={groups} delay={0.25} />
