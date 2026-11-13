@@ -3,10 +3,10 @@ import { Calculator, Download, RotateCcw } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { fmtBRL, formatNcm } from '../lib/analysis'
 import type { Product } from '../lib/parser'
-import { DEFAULT_MVA, INTERNAL_RATE, buildStRows, type StRow } from '../lib/st'
+import { DEFAULT_MVA, INTERNAL_RATE, buildStRows, mvaKey, type StRow } from '../lib/st'
 import { AnimatedNumber, Card, CardHeader, RateBadge } from './ui'
 
-const MVA_STORE = 'separacao-notas:mva'
+const MVA_STORE = 'separacao-notas:mva-por-aliquota' // chave: NCM|alíquota
 
 function loadMva(): Record<string, number> {
   try {
@@ -49,29 +49,29 @@ export function StCalculator({ products, delay }: { products: Product[]; delay?:
     { products: 0, ipi: 0, bc: 0, icmsCredit: 0, baseSt: 0, icmsSt: 0 },
   )
 
-  const commit = (ncm: string) => {
-    const raw = drafts[ncm]
+  const commit = (key: string) => {
+    const raw = drafts[key]
     if (raw == null) return
     const v = Number(raw.replace(/\./g, '').replace(',', '.'))
     setDrafts((d) => {
       const next = { ...d }
-      delete next[ncm]
+      delete next[key]
       return next
     })
-    if (Number.isFinite(v) && v >= 0 && v < 1000) setMva((m) => ({ ...m, [ncm]: v }))
+    if (Number.isFinite(v) && v >= 0 && v < 1000) setMva((m) => ({ ...m, [key]: v }))
   }
 
-  const mvaText = (ncm: string) =>
-    drafts[ncm] ?? (mva[ncm] ?? DEFAULT_MVA).toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+  const mvaText = (key: string) =>
+    drafts[key] ?? (mva[key] ?? DEFAULT_MVA).toLocaleString('pt-BR', { maximumFractionDigits: 4 })
 
-  const customized = Object.keys(mva).some((k) => byNcm.some(([n]) => n === k) && mva[k] !== DEFAULT_MVA)
+  const customized = rows.some((r) => r.mva !== DEFAULT_MVA)
 
   return (
     <Card delay={delay}>
       <CardHeader
         icon={<Calculator className="size-4" />}
         title="Apuração ICMS-ST"
-        subtitle={`Por NCM e alíquota interestadual · alíquota interna ${INTERNAL_RATE}% · edite o MVA de cada NCM`}
+        subtitle={`Por NCM e alíquota interestadual · alíquota interna ${INTERNAL_RATE}% · edite o MVA de cada NCM em cada alíquota`}
         right={
           <div className="flex gap-2">
             {customized && (
@@ -112,7 +112,7 @@ export function StCalculator({ products, delay }: { products: Product[]; delay?:
       </div>
 
       <div className="overflow-x-auto border-t border-line">
-        <table className="w-full min-w-[1000px] text-sm">
+        <table className="w-full min-w-[1100px] text-sm">
           <thead className="bg-surface-2/60 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">
             <tr>
               <th className="px-4 py-2.5 text-left">NCM</th>
@@ -121,6 +121,7 @@ export function StCalculator({ products, delay }: { products: Product[]; delay?:
               <th className="px-3 py-2.5 text-right">IPI</th>
               <th className="px-3 py-2.5 text-right">BC prod + IPI</th>
               <th className="px-3 py-2.5 text-right">ICMS crédito</th>
+              <th className="px-3 py-2.5 text-right">MVA</th>
               <th className="px-3 py-2.5 text-right">MVA ajustada</th>
               <th className="px-3 py-2.5 text-right">Acréscimo MVA</th>
               <th className="px-3 py-2.5 text-right">Base ST</th>
@@ -133,29 +134,11 @@ export function StCalculator({ products, delay }: { products: Product[]; delay?:
               return (
                 <Fragment key={ncm}>
                   <tr className="border-t-2 border-line bg-surface-2/30">
-                    <td className="px-4 py-2" colSpan={6}>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-mono text-[13px] font-semibold text-ink">{formatNcm(ncm)}</span>
-                        <label className="inline-flex items-center gap-2 text-xs text-ink-2">
-                          MVA
-                          <span className="relative">
-                            <input
-                              inputMode="decimal"
-                              value={mvaText(ncm)}
-                              onChange={(e) => setDrafts((d) => ({ ...d, [ncm]: e.target.value }))}
-                              onBlur={() => commit(ncm)}
-                              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                              className="w-24 rounded-lg border border-line bg-surface py-1 pr-6 pl-2 text-right text-sm font-semibold text-ink tabular outline-none focus:border-accent"
-                            />
-                            <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ink-3">
-                              %
-                            </span>
-                          </span>
-                        </label>
-                      </div>
+                    <td className="px-4 py-2" colSpan={7}>
+                      <span className="font-mono text-[13px] font-semibold text-ink">{formatNcm(ncm)}</span>
                     </td>
                     <td colSpan={3} />
-                    <td className="px-4 py-2 text-right text-xs text-ink-2 tabular">
+                    <td className="px-4 py-2 text-right text-xs whitespace-nowrap text-ink-2 tabular">
                       subtotal <b className="text-ink">{fmtBRL(sub)}</b>
                     </td>
                   </tr>
@@ -169,6 +152,15 @@ export function StCalculator({ products, delay }: { products: Product[]; delay?:
                       <td className="px-3 py-2.5 text-right text-ink-2 tabular">{fmtBRL(r.ipi)}</td>
                       <td className="px-3 py-2.5 text-right text-ink tabular">{fmtBRL(r.bc)}</td>
                       <td className="px-3 py-2.5 text-right text-ink-2 tabular">{fmtBRL(r.icmsCredit)}</td>
+                      <td className="px-3 py-1.5 text-right">
+                        <MvaInput
+                          value={mvaText(mvaKey(r.ncm, r.rate))}
+                          edited={r.mva !== DEFAULT_MVA}
+                          label={`MVA ${formatNcm(r.ncm)} ${r.rate}%`}
+                          onChange={(v) => setDrafts((d) => ({ ...d, [mvaKey(r.ncm, r.rate)]: v }))}
+                          onCommit={() => commit(mvaKey(r.ncm, r.rate))}
+                        />
+                      </td>
                       <td className="px-3 py-2.5 text-right text-ink tabular">{pct4(r.mvaAdjusted)}</td>
                       <td className="px-3 py-2.5 text-right text-ink-2 tabular">{fmtBRL(r.mvaAddition)}</td>
                       <td className="px-3 py-2.5 text-right text-ink tabular">{fmtBRL(r.baseSt)}</td>
@@ -188,7 +180,7 @@ export function StCalculator({ products, delay }: { products: Product[]; delay?:
               <td className="px-3 py-3 text-right tabular">{fmtBRL(tot.ipi)}</td>
               <td className="px-3 py-3 text-right tabular">{fmtBRL(tot.bc)}</td>
               <td className="px-3 py-3 text-right tabular">{fmtBRL(tot.icmsCredit)}</td>
-              <td colSpan={2} />
+              <td colSpan={3} />
               <td className="px-3 py-3 text-right tabular">{fmtBRL(tot.baseSt)}</td>
               <td className="px-4 py-3 text-right text-accent tabular">{fmtBRL(tot.icmsSt)}</td>
             </tr>
@@ -234,4 +226,35 @@ function exportStCsv(rows: StRow[]) {
   a.download = 'apuracao-icms-st.csv'
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function MvaInput({
+  value,
+  edited,
+  label,
+  onChange,
+  onCommit,
+}: {
+  value: string
+  edited: boolean
+  label: string
+  onChange: (v: string) => void
+  onCommit: () => void
+}) {
+  return (
+    <span className="relative inline-block">
+      <input
+        aria-label={label}
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        className={`w-24 rounded-lg border py-1 pr-6 pl-2 text-right text-sm font-semibold tabular outline-none focus:border-accent ${
+          edited ? 'border-accent/50 bg-accent-soft text-accent' : 'border-line bg-surface text-ink'
+        }`}
+      />
+      <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ink-3">%</span>
+    </span>
+  )
 }

@@ -48,7 +48,10 @@ export function computeStRow(
   }
 }
 
-export function buildStRows(products: Product[], mvaByNcm: Record<string, number>): StRow[] {
+/** Chave do MVA: cada alíquota de um NCM tem seu próprio MVA. */
+export const mvaKey = (ncm: string, rate: number) => `${ncm}|${rate}`
+
+export function buildStRows(products: Product[], mvaByKey: Record<string, number>): StRow[] {
   const map = new Map<string, { ncm: string; rate: number; products: number; ipi: number; icmsCredit: number }>()
   for (const p of products) {
     const key = `${p.ncm}|${p.icmsRate}`
@@ -60,5 +63,5 @@ export function buildStRows(products: Product[], mvaByNcm: Record<string, number
   }
   return [...map.values()]
     .sort((a, b) => b.ncm.localeCompare(a.ncm) || a.rate - b.rate)
-    .map((r) => computeStRow(r, mvaByNcm[r.ncm] ?? DEFAULT_MVA))
+    .map((r) => computeStRow(r, mvaByKey[mvaKey(r.ncm, r.rate)] ?? DEFAULT_MVA))
 }
